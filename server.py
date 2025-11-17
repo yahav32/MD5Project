@@ -23,7 +23,7 @@ def next_block_range(start_block, chars, length):
     return from_pass, to_pass, next_block
 
 
-HOST = '0.0.0.0'
+HOST = '127.0.0.1'
 PORT = 5000
 target_pass = "!!!"
 target_hash = hashlib.md5(target_pass.encode()).hexdigest()
