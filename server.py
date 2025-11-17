@@ -23,7 +23,7 @@ def next_block_range(start_block, chars, length):
     return from_pass, to_pass, next_block
 
 
-HOST = '127.0.0.1'
+HOST = ''
 PORT = 5000
 target_pass = "!!!"
 target_hash = hashlib.md5(target_pass.encode()).hexdigest()
@@ -49,12 +49,12 @@ while True:
             active_soc.append(new_soc)
             from_pass, to_pass, next_block = next_block_range(curr_block, used_key, length)
             msg = f"{target_hash} {from_pass} {to_pass} {used_key}"
-            print(f"[DEBUG] {msg}")
             new_soc.send(msg.encode())
             print("Server sent:", msg)
             print(f"Got connection from ip: {add[0]}")
         else:
             data = req.recv(1024).decode()
+            print(data)
             password, status = data.split(" ")
             
 
