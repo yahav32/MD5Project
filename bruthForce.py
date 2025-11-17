@@ -9,7 +9,7 @@ class BruthForce:
 
     def cracker(self,from_pass,to_pass):
         password = from_pass
-        flag = "301"
+        flag = "303"
         while hashlib.md5(password.encode()).hexdigest() != self.hash:
             password = self.inc_key(password)
             if password == to_pass: 
