@@ -9,19 +9,19 @@ client_socket.connect((HOST, PORT))
 
 while True:
     data = client_socket.recv(1024).decode()
-    if data == "DONE":
+    if data == "301":
         print("Client: DONE received, closing connection.")
         break
 
     print(f"Client gets {data}")
-    HASH, FROM, TO, USED_KEY = (data.split(" "))[1::2]
+    HASH, FROM, TO, USED_KEY = data.split(" ")
     print(f"[DEBUG]: {HASH}, {FROM}, {TO}, {USED_KEY}")
 
     bruthforcer = BruthForce(hash=HASH,used_key=USED_KEY)
     password,status = bruthforcer.cracker(from_pass=FROM,to_pass=TO)
     client_socket.sendall(f"{password} {status}".encode())
 
-    if status == "301":
+    if status == "303":
         print("Client: PASSWORD FOUND, closing connection.")
         break
 
