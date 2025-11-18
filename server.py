@@ -12,7 +12,7 @@ Need to implement\check:
 - Check if the communication functions well after the changes
 """
 class Manager:
-    def __init__(self,HOST=Constants.HOST,PORT=Constants.PORT,target_pass=None,length=Constants.LENGTH,used_key=Constants.USED_KEY,client_num=Constants.CLIENT_NUM):
+    def __init__(self,target_pass=None,HOST=Constants.HOST,PORT=Constants.PORT,length=Constants.LENGTH,used_key=Constants.USED_KEY,client_num=Constants.CLIENT_NUM):
         self.length = length
         self.used_key = used_key
         self.HOST = HOST
@@ -79,17 +79,7 @@ class Manager:
                             req.send(msg.encode())
                             print("Server sent:", msg)
                     index += 1
-
-        active_soc = None
-        server_socket.close()
-
-
-
-        
-
-        # conn, addr = server_socket.accept()
-        # print(f"Client connected from {addr}")
-
-        curr_block = used_key[0]
-        next_block = ""
+passw = "aba"
+mng = Manager(passw)
+mng.start_server()
         
