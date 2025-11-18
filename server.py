@@ -3,80 +3,93 @@ import hashlib
 import string
 import select
 import time
+from conversions import n_to_decimal, decimal_to_n
+from Constants import Constants
+"""
+Need to implement\check:
+- Ping message to check if client is alive
+- Handle client disconnection
+- Check if the communication functions well after the changes
+"""
+class Manager:
+    def __init__(self,HOST=Constants.HOST,PORT=Constants.PORT,target_pass=None,length=Constants.LENGTH,used_key=Constants.USED_KEY,client_num=Constants.CLIENT_NUM):
+        self.length = length
+        self.used_key = used_key
+        self.HOST = HOST
+        self.PORT = PORT
+        self.target_pass = target_pass
+        self.target_hash = hashlib.md5(target_pass.encode()).hexdigest()
+        self.chunks = self.get_chunks(client_num)
+    
+    def get_chunks(self,how_many_chunks):
+        n = len(self.used_key)**self.length
+        chunk_size = n // how_many_chunks 
+        lst = []
+        for i in range(how_many_chunks):
+            start = i * chunk_size
+            if i == how_many_chunks - 1:
+                end = n - 1
+            else:
+                end = (i + 1) * chunk_size
+            lst.append((decimal_to_n(start,self.used_key,self.length),decimal_to_n(end,self.used_key,self.length)))
+        return lst
 
-length = 3
-used_key = string.ascii_lowercase + string.digits + "!@#$%^&*"
-
-
-def next_block_range(start_block, chars, length):
-    index = chars.index(start_block)
-
-    from_pass = start_block * length
-
-    if index == len(chars) - 1:
-        to_pass = chars[-1] * length
-        next_block = None
-    else:
-        next_block = chars[index + 1]
-        to_pass = next_block * length
-
-    return from_pass, to_pass, next_block
-
-
-HOST = ''
-PORT = 5000
-target_pass = "!!!"
-target_hash = hashlib.md5(target_pass.encode()).hexdigest()
-
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((HOST, PORT))
-server_socket.listen(1)
-active_soc = [server_socket]
-print(f"Server listening on {HOST}:{PORT}")
-
-# conn, addr = server_socket.accept()
-# print(f"Client connected from {addr}")
-
-curr_block = used_key[0]
-next_block = ""
-while True:
-    open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
-    time.sleep(1)
-
-    for req in open_requests:
-        if next_block != None and req == server_socket:
-            new_soc, add = req.accept()
-            active_soc.append(new_soc)
-            from_pass, to_pass, next_block = next_block_range(curr_block, used_key, length)
-            msg = f"{target_hash} {from_pass} {to_pass} {used_key}"
-            new_soc.send(msg.encode())
-            print("Server sent:", msg)
-            print(f"Got connection from ip: {add[0]}")
-        else:
-            data = req.recv(1024).decode()
-            print(data)
-            password, status = data.split(" ")
-            
-
-            if status == "303":
-                print("PASSWORD FOUND:", password)
-                for r in active_soc:
-                    req.send("301".encode())
-                    active_soc.remove(req)
-                    req.close()
-            elif status == "404":
-                if next_block is None:
-                    print("FINISHED ALL RANGES — password NOT found.")
-                    req.send("301".encode())
-                    active_soc.remove(req)
-                    req.close()
-                    print("end communication")
-                else:
-                    from_pass, to_pass, next_block = next_block_range(curr_block, used_key, length)
-                    msg = f"{target_hash} {from_pass} {to_pass} {used_key}"
-                    req.send(msg.encode())
+    def start_server(self):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.HOST, self.PORT))
+        server_socket.listen(1)
+        active_soc = [server_socket]
+        print(f"Server listening on {self.HOST}:{self.PORT}")
+        
+        while True:
+            open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
+            time.sleep(1)
+            index = 0
+            for req in open_requests:
+                if index < Constants.CLIENT_NUM and req == server_socket:
+                    new_soc, add = req.accept()
+                    active_soc.append(new_soc)
+                    from_pass, to_pass = self.chunks[index]
+                    msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
+                    new_soc.send(msg.encode())
                     print("Server sent:", msg)
-            curr_block = next_block
+                    print(f"Got connection from ip: {add[0]}")
+                else:
+                    data = req.recv(1024).decode()
+                    print(data)
+                    password, status = data.split(" ")
+                    
 
-active_soc = None
-server_socket.close()
+                    if status == "303":
+                        print("PASSWORD FOUND:", password)
+                        for r in active_soc:
+                            req.send("301".encode())
+                            active_soc.remove(req)
+                            req.close()
+                    elif status == "404":
+                        if index == Constants.CLIENT_NUM is None:
+                            print("FINISHED ALL RANGES — password NOT found.")
+                            req.send("301".encode())
+                            active_soc.remove(req)
+                            req.close()
+                            print("end communication")
+                        else:
+                            from_pass, to_pass = self.chunks[index]
+                            msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
+                            req.send(msg.encode())
+                            print("Server sent:", msg)
+                    index += 1
+
+        active_soc = None
+        server_socket.close()
+
+
+
+        
+
+        # conn, addr = server_socket.accept()
+        # print(f"Client connected from {addr}")
+
+        curr_block = used_key[0]
+        next_block = ""
+        
