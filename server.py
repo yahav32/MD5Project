@@ -12,8 +12,8 @@ Need to implement\check:
 - Check if the communication functions well after the changes
 """
 class Manager:
-    def __init__(self,target_pass=None,HOST=Constants.HOST,PORT=Constants.PORT,length=Constants.LENGTH,used_key=Constants.USED_KEY,client_num=Constants.CLIENT_NUM):
-        self.length = length
+    def __init__(self,target_pass=None,HOST=Constants.HOST,PORT=Constants.PORT,used_key=Constants.USED_KEY,client_num=Constants.CLIENT_NUM):
+        self.length = len(target_pass)
         self.used_key = used_key
         self.HOST = HOST
         self.PORT = PORT
@@ -115,5 +115,6 @@ passw = "&*a"
 mng = Manager(passw)
 mng.start_server()
         
+
 
 
