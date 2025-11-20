@@ -5,3 +5,5 @@ class Constants:
     HOST = ''
     PORT = 5000
     CLIENT_NUM = 4
+    MIN = 1
+    SEC = 60

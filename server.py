@@ -34,6 +34,30 @@ class Manager:
                 end = (i + 1) * chunk_size
             lst.append((decimal_to_n(start,self.used_key,self.length),decimal_to_n(end,self.used_key,self.length)))
         return lst
+    def ping(self, active_soc):
+        dead_sockets = []
+
+        for soc in active_soc:
+            if soc is None or soc is active_soc[0]:
+                continue
+            try:
+                soc.sendall("ping".encode())
+                reply = soc.recv(1024).decode()
+
+                if reply != "pong":
+                    dead_sockets.append(soc)
+
+            except Exception:
+                dead_sockets.append(soc)
+
+
+        for ds in dead_sockets:
+            print(f"Removing dead client {ds}")
+            if ds in active_soc:
+                active_soc.remove(ds)
+                ds.close()
+
+        time.sleep(Constants.MIN*Constants.SEC)
 
     def start_server(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -42,6 +66,9 @@ class Manager:
         active_soc = [server_socket]
         print(f"Server listening on {self.HOST}:{self.PORT}")
         index = 0
+        thread = threading.Thread(target=self.ping, args=(active_soc,))
+        thread.start()
+        thread.join()
         while True:
             open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
             time.sleep(1)
@@ -85,3 +112,4 @@ passw = "&*a"
 mng = Manager(passw)
 mng.start_server()
         
+
