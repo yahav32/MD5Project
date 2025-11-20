@@ -20,6 +20,7 @@ class Manager:
         self.target_pass = target_pass
         self.target_hash = hashlib.md5(target_pass.encode()).hexdigest()
         self.chunks = self.get_chunks(client_num)
+        print(self.chunks)
     
     def get_chunks(self,how_many_chunks):
         n = len(self.used_key)**self.length
@@ -40,11 +41,11 @@ class Manager:
         server_socket.listen(1)
         active_soc = [server_socket]
         print(f"Server listening on {self.HOST}:{self.PORT}")
-        
+        index = 0
         while True:
             open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
             time.sleep(1)
-            index = 0
+            
             for req in open_requests:
                 if index < Constants.CLIENT_NUM and req == server_socket:
                     new_soc, add = req.accept()
@@ -78,8 +79,9 @@ class Manager:
                             msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
                             req.send(msg.encode())
                             print("Server sent:", msg)
-                    index += 1
-passw = "aba"
+                print(index)
+                index += 1
+passw = "&*a"
 mng = Manager(passw)
 mng.start_server()
         
