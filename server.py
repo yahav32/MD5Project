@@ -5,6 +5,7 @@ import select
 import time
 from conversions import n_to_decimal, decimal_to_n
 from Constants import Constants
+import threading 
 """
 Need to implement\check:
 - Ping message to check if client is alive
@@ -34,56 +35,54 @@ class Manager:
                 end = (i + 1) * chunk_size
             lst.append((decimal_to_n(start,self.used_key,self.length),decimal_to_n(end,self.used_key,self.length)))
         return lst
-    def ping(self, active_soc):
-        dead_sockets = []
+    def ping(self):
+        while True:
+            dead_sockets = []
 
-        for soc in active_soc:
-            if soc is None or soc is active_soc[0]:
-                continue
-            try:
-                soc.sendall("ping".encode())
-                reply = soc.recv(1024).decode()
+            for soc in self.active_soc:
+                if soc is None or soc is self.active_soc[0]:
+                    continue
+                try:
+                    soc.sendall("ping".encode())
+                    reply = soc.recv(1024).decode()
+                    print(f"[REPLY] {reply}")
+                    if reply != "pong":
+                        dead_sockets.append(soc)
 
-                if reply != "pong":
+                except Exception:
                     dead_sockets.append(soc)
 
-            except Exception:
-                dead_sockets.append(soc)
 
+            for ds in dead_sockets:
+                print(f"Removing dead client {ds}")
+                if ds in self.active_soc:
+                    self.active_soc.remove(ds)
+                    ds.close()
 
-        for ds in dead_sockets:
-            print(f"Removing dead client {ds}")
-            if ds in active_soc:
-                active_soc.remove(ds)
-                ds.close()
-
-        time.sleep(Constants.MIN*Constants.SEC)
+            time.sleep(Constants.MIN*Constants.SEC)
 
     def start_server(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.HOST, self.PORT))
         server_socket.listen(4)
-        active_soc = [server_socket]
+        self.active_soc = [server_socket]
         print(f"Server listening on {self.HOST}:{self.PORT}")
         index = 0
-        thread = threading.Thread(target=self.ping, args=(active_soc,))
+        thread = threading.Thread(target=self.ping, args=())
         thread.start()
-        thread.join()
         while True:
-            open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
-
+            open_requests, open_outputs, open_exept = select.select(self.active_soc,[],[])
             time.sleep(1)
-            
             for req in open_requests:
                 if req == server_socket:
-                    if len(active_soc) - 1 >= Constants.CLIENT_NUM:
+                    if len(self.active_soc) - 1 >= Constants.CLIENT_NUM:
                         temp_soc, addr = server_socket.accept()
                         temp_soc.send("SERVER_FULL".encode())
                         temp_soc.close()
                         continue
                     else:
                         new_soc, add = req.accept()
-                        active_soc.append(new_soc)
+                        self.active_soc.append(new_soc)
                         from_pass, to_pass = self.chunks[index]
                         msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
                         new_soc.send(msg.encode())
@@ -97,15 +96,15 @@ class Manager:
 
                     if status == "303":
                         print("PASSWORD FOUND:", password)
-                        for r in active_soc:
+                        for r in self.active_soc:
                             req.send("301".encode())
-                            active_soc.remove(req)
+                            self.active_soc.remove(req)
                             req.close()
                     elif status == "404":
                         if index == Constants.CLIENT_NUM is None:
                             print("FINISHED ALL RANGES — password NOT found.")
                             req.send("301".encode())
-                            active_soc.remove(req)
+                            self.active_soc.remove(req)
                             req.close()
                             print("end communication")
                         else:
@@ -114,11 +113,10 @@ class Manager:
                             req.send(msg.encode())
                             print("Server sent:", msg)
                 index += 1
-passw = "&*a"
+                
+passw = "&&*&!@"
 mng = Manager(passw)
 mng.start_server()
         
-
-
 
 
