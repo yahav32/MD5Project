@@ -81,13 +81,16 @@ class Manager:
                         temp_soc.close()
                         continue
                     else:
-                        new_soc, add = req.accept()
-                        self.active_soc.append(new_soc)
-                        from_pass, to_pass = self.chunks[index]
-                        msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
-                        new_soc.send(msg.encode())
-                        print("Server sent:", msg)
-                        print(f"Got connection from ip: {add[0]}")
+                        try:
+                            new_soc, add = req.accept()
+                            self.active_soc.append(new_soc)
+                            from_pass, to_pass = self.chunks[index]
+                            msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
+                            new_soc.send(msg.encode())
+                            print("Server sent:", msg)
+                            print(f"Got connection from ip: {add[0]}")
+                        except IndexError as e:
+                            print(f"index out of range {e}")
                 else:
                     data = req.recv(1024).decode()
                     print(data)
@@ -101,20 +104,24 @@ class Manager:
                             self.active_soc.remove(req)
                             req.close()
                     elif status == "404":
-                        if index == Constants.CLIENT_NUM is None:
-                            print("FINISHED ALL RANGES — password NOT found.")
-                            req.send("301".encode())
-                            self.active_soc.remove(req)
-                            req.close()
-                            print("end communication")
-                        else:
+                        if index < len(self.chunks):
+                        # send next chunk
                             from_pass, to_pass = self.chunks[index]
                             msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
                             req.send(msg.encode())
                             print("Server sent:", msg)
+                            index += 1 
+                        else:
+                            try:
+                                from_pass, to_pass = self.chunks[index]
+                                msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
+                                req.send(msg.encode())
+                                print("Server sent:", msg)
+                            except:
+                                print("Index out of range")
                 index += 1
                 
-passw = "&&*&!@"
+passw = "&&*&!"
 mng = Manager(passw)
 mng.start_server()
         
