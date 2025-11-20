@@ -66,6 +66,9 @@ class Manager:
         active_soc = [server_socket]
         print(f"Server listening on {self.HOST}:{self.PORT}")
         index = 0
+        thread = threading.Thread(target=self.ping, args=(active_soc,))
+        thread.start()
+        thread.join()
         while True:
             open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
 
@@ -115,6 +118,7 @@ passw = "&*a"
 mng = Manager(passw)
 mng.start_server()
         
+
 
 
 
