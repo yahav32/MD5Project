@@ -21,6 +21,7 @@ class Manager:
         self.target_pass = target_pass
         self.target_hash = hashlib.md5(target_pass.encode()).hexdigest()
         self.chunks = self.get_chunks(client_num)
+        self.shutdown_event = threading.Event()  # Event to signal server shutdown
         print(self.chunks)
     
     def get_chunks(self,how_many_chunks):
@@ -36,30 +37,39 @@ class Manager:
             lst.append((decimal_to_n(start,self.used_key,self.length),decimal_to_n(end,self.used_key,self.length)))
         return lst
     def ping(self):
-        while True:
+        while not self.shutdown_event.is_set():
             dead_sockets = []
 
-            for soc in self.active_soc:
-                if soc is None or soc is self.active_soc[0]:
-                    continue
-                try:
-                    soc.sendall("ping".encode())
-                    reply = soc.recv(1024).decode()
-                    print(f"[REPLY] {reply}")
-                    if reply != "pong":
+            # Locking for thread-safety
+            with threading.Lock():
+                for soc in self.active_soc[1:]:  # Start from index 1 to skip the server socket
+                    if soc is None:
+                        continue
+
+                    try:
+                        soc.sendall("ping".encode())
+                        reply = soc.recv(1024).decode()
+                        print(reply)
+                        print(f"[REPLY] {reply}")
+                        if reply != "pong":
+                            dead_sockets.append(soc)
+
+                    except socket.error as e:
+                        print(f"Socket error: {e}")
+                        dead_sockets.append(soc)
+                    except Exception as e:
+                        print(f"Error while pinging socket: {e}")
                         dead_sockets.append(soc)
 
-                except Exception:
-                    dead_sockets.append(soc)
+            # Remove dead sockets safely after checking all
+            with threading.Lock():
+                for ds in dead_sockets:
+                    print(f"Removing dead client {ds}")
+                    if ds in self.active_soc:
+                        self.active_soc.remove(ds)
+                        ds.close()
 
-
-            for ds in dead_sockets:
-                print(f"Removing dead client {ds}")
-                if ds in self.active_soc:
-                    self.active_soc.remove(ds)
-                    ds.close()
-
-            time.sleep(Constants.MIN*Constants.SEC)
+            time.sleep(Constants.MIN * Constants.SEC)
 
     def start_server(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,8 +78,8 @@ class Manager:
         self.active_soc = [server_socket]
         print(f"Server listening on {self.HOST}:{self.PORT}")
         index = 0
-        thread = threading.Thread(target=self.ping, args=())
-        thread.start()
+        ping_thread = threading.Thread(target=self.ping, args=())
+        ping_thread.start()
         while True:
             open_requests, open_outputs, open_exept = select.select(self.active_soc,[],[])
             time.sleep(1)
@@ -97,12 +107,24 @@ class Manager:
                     password, status = data.split(" ")
                     
 
-                    if status == "303":
+                    if status == "303":  # Password found
                         print("PASSWORD FOUND:", password)
-                        for r in self.active_soc:
-                            req.send("301".encode())
-                            self.active_soc.remove(req)
-                            req.close()
+
+                        req.send("301".encode()) 
+                        self.active_soc.remove(req)  
+                        req.close()  
+
+                        for r in self.active_soc: 
+                            try:
+                                r.send("301".encode())  
+                                r.close()  
+                                self.active_soc.remove(r) 
+                            except Exception as e:
+                                print(f"Error closing client {r}: {e}")
+                        self.shutdown_event.set()
+                        server_socket.close()
+                        print("Server has shut down.")
+                        return
                     elif status == "404":
                         if index < len(self.chunks):
                         # send next chunk
@@ -121,7 +143,7 @@ class Manager:
                                 print("Index out of range")
                 index += 1
                 
-passw = "&&*&!"
+passw = "itzy8"
 mng = Manager(passw)
 mng.start_server()
         
