@@ -62,26 +62,30 @@ class Manager:
     def start_server(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.HOST, self.PORT))
-        server_socket.listen(1)
+        server_socket.listen(4)
         active_soc = [server_socket]
         print(f"Server listening on {self.HOST}:{self.PORT}")
         index = 0
-        thread = threading.Thread(target=self.ping, args=(active_soc,))
-        thread.start()
-        thread.join()
         while True:
             open_requests, open_outputs, open_exept = select.select(active_soc,[],[])
+
             time.sleep(1)
             
             for req in open_requests:
-                if index < Constants.CLIENT_NUM and req == server_socket:
-                    new_soc, add = req.accept()
-                    active_soc.append(new_soc)
-                    from_pass, to_pass = self.chunks[index]
-                    msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
-                    new_soc.send(msg.encode())
-                    print("Server sent:", msg)
-                    print(f"Got connection from ip: {add[0]}")
+                if req == server_socket:
+                    if len(active_soc) - 1 >= Constants.CLIENT_NUM:
+                        temp_soc, addr = server_socket.accept()
+                        temp_soc.send("SERVER_FULL".encode())
+                        temp_soc.close()
+                        continue
+                    else:
+                        new_soc, add = req.accept()
+                        active_soc.append(new_soc)
+                        from_pass, to_pass = self.chunks[index]
+                        msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
+                        new_soc.send(msg.encode())
+                        print("Server sent:", msg)
+                        print(f"Got connection from ip: {add[0]}")
                 else:
                     data = req.recv(1024).decode()
                     print(data)
@@ -106,10 +110,10 @@ class Manager:
                             msg = f"{self.target_hash} {from_pass} {to_pass} {self.used_key}"
                             req.send(msg.encode())
                             print("Server sent:", msg)
-                print(index)
                 index += 1
 passw = "&*a"
 mng = Manager(passw)
 mng.start_server()
         
+
 
