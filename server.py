@@ -69,7 +69,7 @@ class Manager:
                         self.active_soc.remove(ds)
                         ds.close()
 
-            time.sleep(Constants.MIN * Constants.SEC)
+            if not self.shutdown_event.is_set(): time.sleep(Constants.MIN * Constants.SEC)
 
     def start_server(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -87,9 +87,10 @@ class Manager:
                 if req == server_socket:
                     if len(self.active_soc) - 1 >= Constants.CLIENT_NUM:
                         temp_soc, addr = server_socket.accept()
+                        print("SERVER FULL")
                         temp_soc.send("SERVER_FULL".encode())
                         temp_soc.close()
-                        continue
+                        break
                     else:
                         try:
                             new_soc, add = req.accept()
@@ -102,19 +103,24 @@ class Manager:
                         except IndexError as e:
                             print(f"index out of range {e}")
                 else:
-                    data = req.recv(1024).decode()
-                    print(data)
-                    password, status = data.split(" ")
-                    
+                    try:
+                        data = req.recv(1024).decode()
+                        print(data)
+                    except:
+                        print("ERROR DATA")
+                    try:
+                        password, status = data.split(" ")
+                    except:
+                        print("INVALID PASSWORD PROTOCOL SENT")
+                        break
 
                     if status == "303":  # Password found
                         print("PASSWORD FOUND:", password)
 
                         req.send("301".encode()) 
                         self.active_soc.remove(req)  
-                        req.close()  
 
-                        for r in self.active_soc: 
+                        for r in self.active_soc[1:]: 
                             try:
                                 r.send("301".encode())  
                                 r.close()  
@@ -143,9 +149,9 @@ class Manager:
                                 print("Index out of range")
                 index += 1
                 
-passw = "itzy8"
+passw = "$d67ad"
 mng = Manager(passw)
 mng.start_server()
-        
+
 
 
