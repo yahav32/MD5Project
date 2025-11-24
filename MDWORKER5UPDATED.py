@@ -180,4 +180,5 @@ except KeyboardInterrupt:
     print("\n[MAIN] Ctrl+C pressed. Stopping worker...")
     worker.running = False
 
+time.sleep(2)
 print("[MAIN] Exiting program.")
